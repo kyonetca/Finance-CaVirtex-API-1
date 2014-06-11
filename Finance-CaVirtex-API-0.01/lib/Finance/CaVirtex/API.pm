@@ -293,18 +293,44 @@ the connection, authenticatino and an errors in between.
 
 You create an object like this:
 
-    my $caviertex = Finance::CaVirtex::API->new(token => 'YOUR TOKEN', secret => 'YOUR SECRET');
+    my $caviertex = Finance::CaVirtex::API->new(%params);
+    # ...required param keys: token, secret
 
 The methods you call that match the API spec are:
 
-    $cavirtex->;
-    $cavirtex->;
-    $cavirtex->;
-    $cavirtex->;
-    $cavirtex->;
-    $cavirtex->;
-    $cavirtex->;
-    $cavirtex->;
+    $cavirtex-> orderbook(%params);
+    # ...required: currencypair
+
+    $cavirtex-> tradebook(%params);
+    # ...required: currencypair
+    # ...optional: days, startdate, enddate
+
+    $cavirtex-> ticker();
+    # ...required: currencypair 
+
+    $cavirtex-> balance();
+
+    $cavirtex-> transactions();
+    # ...required: currencypair
+    # ...optional: days, startdate, enddate
+
+    $cavirtex-> trade_history();
+    # ...required: currencypair
+    # ...optional: days, startdate, enddate
+
+    $cavirtex-> order_history();
+    # ...required: currencypair
+    # ...optional: days, startdate, enddate
+
+    $cavirtex-> order();
+    # ...required: currencypair, mode, amount, price
+
+    $cavirtex-> order_cancel();
+    # ...required: id
+
+    $cavirtex-> withdraw();
+    # ...required: amount, currency, address
+
 
 =head1 METHODS
 
@@ -317,9 +343,9 @@ key, secret and client_id are required.
 These values are provided by Bitstamp through their online administration interface.
 
 
-=head2 __more_to_come__()
+=head2 Other Methods
 
-etc
+The methods you will use are discussed in the DESCRIPTION. For details on valid parameter values, please consult the offical CaVirtex API documentation.
 
 =head1 ATTRIBUTES
 
