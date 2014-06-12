@@ -1,3 +1,6 @@
-Finance-CaVirtex-API-0.01/t/Finance-CaVirtex-API.t.live
-Finance-CaVirtex-API-0.02/t/Finance-CaVirtex-API.t.live
+Finance-CaVirtex-API-*/t/*.live
+# Finance-CaVirtex-API-latest/t/Finance-CaVirtex-API.t.live
+# Finance-CaVirtex-API-0.01/t/Finance-CaVirtex-API.t.live
+# Finance-CaVirtex-API-0.02/t/Finance-CaVirtex-API.t.live
+# Finance-CaVirtex-API-0.03/t/Finance-CaVirtex-API.t.live
 
