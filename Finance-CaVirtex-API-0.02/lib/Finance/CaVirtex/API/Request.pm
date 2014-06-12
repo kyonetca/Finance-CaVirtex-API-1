@@ -24,14 +24,24 @@ sub is_ready_to_send  { READY_TO_SEND }
 sub is_private        { IS_PRIVATE    }
 sub data_key          { DATA_KEY      }
 
-# dump all the fields as a hash...
+## dump all the fields as a hash...
+#sub request_content {
+    #my $self = shift;
+    #my %content;
+    #foreach my $field ($self->attributes) {
+        #$content{$field} = $self->$field if defined $self->$field;
+    #}
+    #return %content;
+#}
+
+# dump all the fields as a hashref...
 sub request_content {
-   my $self = shift;
-   my %content;
-   foreach my $field ($self->attributes) {
-      $content{$field} = $self->$field if defined $self->$field;
-   }
-   return %content;
+    my $self = shift;
+    my $content = {};
+    foreach my $field ($self->attributes) {
+        $content->{$field} = $self->$field if defined $self->$field;
+    }
+    return $content;
 }
 
 1;

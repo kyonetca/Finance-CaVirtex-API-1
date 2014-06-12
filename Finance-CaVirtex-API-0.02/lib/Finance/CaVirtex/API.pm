@@ -18,6 +18,7 @@ use JSON;
 use MIME::Base64;
 use Time::HiRes qw(gettimeofday);
 use Digest::SHA qw(hmac_sha256_hex);
+use Data::Dumper;
 
 use Finance::CaVirtex::API::Request::OrderBook;
 use Finance::CaVirtex::API::Request::TradeBook;
@@ -58,7 +59,7 @@ sub is_ready_to_send {
     # here we are checking whether or not to default to '0' (not ready to send) based on this objects settings.
     # the settings in here are the token and the secret provided to you by CaVirtex.
     # if we dont have to add a nonce, then just check if its ready...
-    if (not $self->request->is_private or defined $self->token && defined $self->secret) {
+    if (not $self->private or defined $self->token && defined $self->secret) {
        $ready = $self->request->is_ready_to_send;
     }
     warn sprintf ERROR_IS_IT_READY, ($ready ? '' : ' NOT') if DEBUG;
@@ -93,10 +94,22 @@ sub send {
             my $request = $self->http_request(HTTP::Request->new);
             $request->method($self->request->request_type);
             $request->uri($self->request->url);
-            my %query_form = $self->request->request_content;
-            if ($self->request->is_private) {
-                $query_form{nonce}     = $self->nonce;
-                $query_form{token}     = $self->token;
+            my %query_form = %{$self->request_content};
+#
+# This block will be removed once we have basic testing completed.
+# ...because printing these variables on a live system is not a good idea...
+#
+#if ($self->private) {
+#    print Data::Dumper->Dump([\%query_form],['Query Form']);
+#    printf "sorted request values: %s\n", join(', ', $self->sorted_request_values);
+#    printf "Nonce: %s\n", $self->nonce;
+#    printf "Token: %s\n", $self->token;
+#    printf "Path: %s\n", $self->path;
+#}
+#
+            if ($self->private) {
+                $query_form{nonce    } = $self->nonce;
+                $query_form{token    } = $self->token;
                 $query_form{signature} = $self->signature;
             }
             my $uri = URI->new;
@@ -147,6 +160,8 @@ sub process_response {
                 # 'orders' or 'trades'. As a result we have to allow this to be a hash or potential
                 # keys to search.
                 # once this is standardized on Cavirtex, we will remove these conditions...
+                #
+                # TODO: watch for such a change and then reduce the code below and change Request/TrasdeBook.pm
                 if (ref $self->request->data_key) {
                     foreach my $key (@{$self->request->data_key}) {
                         if (exists $content->{$key}) {
@@ -165,13 +180,14 @@ sub process_response {
             }
         }
         elsif ($content->{status} eq 'error') {
-            warn sprintf ERROR_CAVIRTEX, $content->{message};
+            warn sprintf ERROR_CAVIRTEX, Dumper $content->{message};
             $self->error($content->{message});
         }
         else {
-            # we got a response but the result was not 'success'...
+            # we got a response but the result was not 'success' and did not contain an 'error' key...
+            # note: your code should never get here, so I am forcing a warning and Dump of the content...
             warn ERROR_UNKNOWN_STATUS;
-            warn Data::Dumper->Dump([$content],['Invalid Cavirtex Response Content']);
+            warn Data::Dumper->Dump([$content],[sprintf 'Invalid %s Response Content', COMPANY]);
             $self->error('unknown status');
         }
     }
@@ -185,26 +201,32 @@ sub process_response {
     return $self->is_success;
 }
 
+
+# the code below is only here to explain the code above
+sub sorted_request_values { @{$_[0]->request_content}{sort {lc($a) cmp lc($b)} keys $_[0]->request_content} }
+#sub sorted_request_values {
+    #my $self = shift;
+    #my %content = %{$self->request_content};
+    #return @content{sort {lc($a) cmp lc($b)} keys %content};
+#}
+
 # signature : is a HMAC-SHA256 Hex encoded hash containing the string data input:
 # nonce, API token, relative API, request path and alphabetically sorted post parameters. 
 # The message must be generated using the Secret Key that was created with your API token.
+#sub signature { hmac_sha256_hex(map($_[0]->$_, qw(nonce token path sorted_request_values secret))) }
 sub signature {
     my $self = shift;
-    return hmac_sha256_hex(
-        $self->nonce, 
-        $self->token, 
-        # I am getting the request path...
-        URI->new($self->http_request->uri)->path, 
-        # I am sorting the request values...
-        (sort {$a cmp $b} values %{CGI->new($self->http_request->content)->Vars}), 
-        $self->secret,
-    );
+    return hmac_sha256_hex($self->nonce, $self->token, $self->path, $self->sorted_request_values, $self->secret);
 }
 
-sub new_nonce    { shift->nonce(sprintf '%d%06d' => gettimeofday) }
-sub json         { shift->{json} ||= JSON->new }
-sub is_success   { defined shift->response }
-sub attributes   { ATTRIBUTES }
+sub new_nonce       { shift->nonce(sprintf '%d%06d' => gettimeofday) }
+sub path            { URI->new(shift->http_request->uri)->path       }
+sub request_content { shift->request->request_content                }
+sub json            { shift->{json} ||= JSON->new                    }
+sub private         { shift->request->is_private                     }
+sub is_success      { defined shift->response                        }
+sub public          { not shift->private                             }
+sub attributes      { ATTRIBUTES                                     }
 
 # this method makes the action call routines simpler...
 sub class_action {
@@ -227,6 +249,7 @@ sub withdraw      { class_action(@_) }
 
 sub token         { my $self = shift; $self->get_set(@_) }
 sub secret        { my $self = shift; $self->get_set(@_) }
+sub nonce         { my $self = shift; $self->get_set(@_) }
 sub error         { my $self = shift; $self->get_set(@_) }
 sub http_response { my $self = shift; $self->get_set(@_) }
 sub request       { my $self = shift; $self->get_set(@_) }
@@ -234,7 +257,6 @@ sub response      { my $self = shift; $self->get_set(@_) }
 sub http_request  { my $self = shift; $self->get_set(@_) }
 sub user_agent    { my $self = shift; $self->get_set(@_) }
 sub apirate       { my $self = shift; $self->get_set(@_) }
-sub nonce         { my $self = shift; $self->get_set(@_) }
 
 1;
 
@@ -405,7 +427,7 @@ If there is a network error (not 200), then the error code and $response->error 
 
 =head1 SEE ALSO
 
-The CaVirtex API documentation: 
+The CaVirtex API documentation: unknown (2014-06-11). contact Cavirtex.
 This project on Github: https://github.com/peawormsworth/Finance-CaVirtex-API
 
 =head1 AUTHOR
