@@ -8,7 +8,8 @@ use lib qw(.);
 use Finance::CaVirtex::API;
 use Data::Dumper;
 
-use constant DEBUG => 1;
+use constant DEBUG   => 0;
+use constant VERBOSE => 0;
 
 # Your CaVirtex API token and secret go here...
 use constant API_TOKEN          => 'CaVirtex token  here';
@@ -16,18 +17,18 @@ use constant API_SECRET         => 'CaVirtex secret here';
 
 use constant TEST_CURRENCY_PAIR => 'BTCCAD';
 
-use constant TEST_TICKER        => 0;
-use constant TEST_TRADEBOOK     => 0;
-use constant TEST_ORDERBOOK     => 0;
+use constant TEST_TICKER        => 1;
+use constant TEST_TRADEBOOK     => 1;
+use constant TEST_ORDERBOOK     => 1;
 
-use constant TEST_PRIVATE       => 1;
+use constant TEST_PRIVATE       => 0;
 
 use constant TEST_BALANCE       => 1;
-use constant TEST_TRANSACTIONS  => 0;
-use constant TEST_TRADE_HISTORY => 0;
-use constant TEST_ORDER_HISTORY => 0;
-use constant TEST_ORDER         => 0;
-use constant TEST_ORDER_CANCEL  => 0;
+use constant TEST_TRANSACTIONS  => 1;
+use constant TEST_TRADE_HISTORY => 1;
+use constant TEST_ORDER_HISTORY => 1;
+use constant TEST_ORDER         => 1;
+use constant TEST_ORDER_CANCEL  => 1;
 # If you really want to do this test, then set the EXTERNAL_BITCOIN_ADDRESS to something as well...
 use constant TEST_WITHDRAW      => 0;
 use constant EXTERNAL_BITCOIN_ADDRESS => 'set to your own btc wallet address outside CaVirtex';
@@ -39,7 +40,6 @@ sub new { bless {} => shift }
 sub set_public  { shift->processor(Finance::CaVirtex::API->new) }
 sub set_private {
     my $self = shift;
-warn "set_private";
     $self->processor(Finance::CaVirtex::API->new(secret => API_SECRET, token => API_TOKEN));
     #shift->processor(Finance::CaVirtex::API->new 
 }
@@ -133,8 +133,8 @@ sub go  {
             if ($balance) {
                 say 'success';
                 say Dumper $balance if DEBUG;
-                foreach my $currency (qw(CAD BTC LTC)) {
-                    printf "Your %s balance is: %s\n", $currency, $balance->{currency};
+                foreach my $currency (keys %$balance) {
+                    printf "You have %s %s in your wallet.\n", $currency, $balance->{$currency} if VERBOSE;
                 }
             }
             else {
@@ -150,7 +150,7 @@ sub go  {
                 say 'success';
                 say Dumper $transactions if DEBUG;
                 foreach my $transaction (@$transactions) {
-                    printf "Transaction [%s]: %s %s %s\n", @{$transaction}{qw(reason total currency)};
+                    printf "Transaction [%s]: %s %s\n", @{$transaction}{qw(reason total currency)};
                 }
             }
             else {
