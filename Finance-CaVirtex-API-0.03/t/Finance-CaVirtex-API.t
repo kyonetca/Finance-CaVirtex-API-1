@@ -1,4 +1,5 @@
 #!/usr/bin/perl -wT
+use Test::More tests => 11;
 
 use 5.010;
 use warnings;
@@ -14,6 +15,8 @@ use constant VERBOSE => 0;
 # Your CaVirtex API token and secret go here...
 use constant API_TOKEN          => 'CaVirtex token  here';
 use constant API_SECRET         => 'CaVirtex secret here';
+
+use constant PACKAGE            => 'Finance::CaVirtex::API';
 
 use constant TEST_CURRENCY_PAIR => 'BTCCAD';
 
@@ -33,33 +36,131 @@ use constant TEST_ORDER_CANCEL  => 1;
 use constant TEST_WITHDRAW      => 0;
 use constant EXTERNAL_BITCOIN_ADDRESS => 'set to your own btc wallet address outside CaVirtex';
 
+
+use constant PUBLIC_TESTS => [
+    {
+        name   => 'Ticker',
+        method => 'ticker',
+        active => TEST_TICKER,
+    },
+    {
+        name   => 'Tradebook',
+        method => 'tradebook',
+        active => TEST_TRADEBOOK,
+        params => {
+            currencypair => 'BTCCAD',
+        },
+    },
+    {
+        name   => 'Orderbook',
+        method => 'orderbook',
+        active => TEST_ORDERBOOK,
+        params => {
+            currencypair => 'BTCCAD',
+        },
+    },
+];
+
+use constant PRIVATE_TESTS => [
+    {
+        name   => 'Balance',
+        method => 'balance',
+        active => TEST_BALANCE,
+    },
+    {
+        name   => 'Transaction',
+        method => 'transactions',
+        active => TEST_TRANSACTIONS,
+        params => {
+            currencypair => 'BTCCAD',
+        },
+    },
+    {
+        name   => 'Trade History',
+        method => 'trade_history',
+        active => TEST_TRADE_HISTORY,
+        params => {
+            currencypair => 'BTCCAD',
+        },
+    },
+    {
+        name   => 'Order History',
+        method => 'order_history',
+        active => TEST_ORDER_HISTORY,
+        params => {
+            currencypair => 'BTCCAD',
+        },
+    },
+    {
+        name   => 'Order',
+        method => 'order',
+        active => TEST_ORDER,
+        params => {
+            currencypair => 'BTCCAD',
+            mode         => 'buy',
+            amount       => '0.0001',
+            price        => '65.01',
+        },
+    },
+];
+=cut
+    {
+        name   => 'Order Cancel',
+        method => 'order_cancel',
+        active => TEST_ORDER_CANCEL,
+    },
+    {
+        name   => 'Withdraw',
+        method => 'withdraw',
+        active => TEST_WITHDRAW,
+    },
+=cut
+
 main->new->go;
-
 sub new { bless {} => shift }
-
-sub set_public  { shift->processor(Finance::CaVirtex::API->new) }
-sub set_private {
-    my $self = shift;
-    $self->processor(Finance::CaVirtex::API->new(secret => API_SECRET, token => API_TOKEN));
-    #shift->processor(Finance::CaVirtex::API->new 
-}
-
-sub processor { my $self = shift; $self->get_set(@_) }
-sub get_set   {
-   my $self      = shift;
-   my $attribute = ((caller(1))[3] =~ /::(\w+)$/)[0];
-   $self->{$attribute} = shift if scalar @_;
-   return $self->{$attribute};
-}
 
 sub go  {
     my $self = shift;
+
+    can_ok(PACKAGE, qw(new));
+
+    say '=== Begin PUBLIC tests' if VERBOSE;
+    isa_ok($self->set_public, PACKAGE);
+    foreach my $test (@{PUBLIC_TESTS()}) {
+        SKIP: {
+            my ($name, $method, $active, $params) = @{$test}{qw(name method active params)};
+            skip $name . ' test turned OFF', 1 unless $active;
+            unless ($self->$method($self->api->$method($params ? (%$params) : ()))) {
+                diag(sprintf "Error is: %s\n", Dumper $self->api->error);
+            }
+            ok($self->$method, 'request public ' . lc $name);
+            print Data::Dumper->Dump([$self->$method],[$name]) if DEBUG;
+        }
+    }
+    say '=== End PUBLIC tests' if VERBOSE;
+
+    say '=== Begin PRIVATE tests' if VERBOSE;
+    isa_ok($self->set_private, PACKAGE);
+    foreach my $test (@{PRIVATE_TESTS()}) {
+        SKIP: {
+            my ($name, $method, $active, $params) = @{$test}{qw(name method active params)};
+            skip $name . ' test turned OFF', 1 unless TEST_PRIVATE and $active;
+            unless ($self->$method($self->api->$method($params ? (%$params) : ()))) {
+                diag(sprintf "Error is: %s\n", Dumper $self->api->error);
+            }
+            ok($self->$method, 'request private ' . $name);
+            print Data::Dumper->Dump([$self->$method],[$name]) if DEBUG;
+        }
+    }
+    say '=== End PRIVATE tests' if VERBOSE;
+
+=cut
 
     say '=== Begin PUBLIC tests';
     $self->set_public;
     if (TEST_TICKER) {
         print '=== Ticker...';
-        my $ticker = $self->processor->ticker;
+        my $ticker = $self->api->ticker;
         if ($ticker) {
             say 'success';
             say Dumper $ticker if DEBUG;
@@ -71,13 +172,13 @@ sub go  {
         }
         else {
             say 'failed';
-            say Dumper $self->processor->error if DEBUG;
+            say Dumper $self->api->error if DEBUG;
         }
     }
 
     if (TEST_TRADEBOOK) {
         print '=== Tradebook...';
-        my $tradebook = $self->processor->tradebook(currencypair => TEST_CURRENCY_PAIR);
+        my $tradebook = $self->api->tradebook(currencypair => TEST_CURRENCY_PAIR);
         if ($tradebook) {
             say 'success';
             say Dumper $tradebook if DEBUG;
@@ -89,13 +190,13 @@ sub go  {
         }
         else {
             say 'failed';
-            say Dumper $self->processor->error if DEBUG;
+            say Dumper $self->api->error if DEBUG;
         }
     }
 
     if (TEST_ORDERBOOK) {
         print '=== Orderbook...';
-        my $orderbook = $self->processor->orderbook(currencypair => TEST_CURRENCY_PAIR);
+        my $orderbook = $self->api->orderbook(currencypair => TEST_CURRENCY_PAIR);
         if ($orderbook) {
             say 'success';
             say Dumper $orderbook if DEBUG;
@@ -113,7 +214,7 @@ sub go  {
         }
         else {
             say 'failed';
-            say Dumper $self->processor->error if DEBUG;
+            say Dumper $self->api->error if DEBUG;
         }
     }
     say '=== Done PUBLIC tests';
@@ -122,14 +223,14 @@ sub go  {
         say '=== Begin PRIVATE tests';
         $self->set_private;
         ## this is a bad trick...
-        #$self->{processor} = Finance::CaVirtex::API->new(
+        #$self->{api} = Finance::CaVirtex::API->new(
             #token  => API_TOKEN,
             #secret => API_SECRET,
         #);
 
         if (TEST_BALANCE) {
             say 'Balance...';
-            my $balance = $self->processor->balance();
+            my $balance = $self->api->balance();
             if ($balance) {
                 say 'success';
                 say Dumper $balance if DEBUG;
@@ -139,13 +240,13 @@ sub go  {
             }
             else {
                 say 'failed';
-                say Dumper $self->processor->error if DEBUG;
+                say Dumper $self->api->error if DEBUG;
             }
         }
 
         if (TEST_TRANSACTIONS) {
             say 'Transactions...';
-            my $transactions = $self->processor->transactions(currencypair => 'BTCCAD');
+            my $transactions = $self->api->transactions(currencypair => 'BTCCAD');
             if ($transactions) {
                 say 'success';
                 say Dumper $transactions if DEBUG;
@@ -155,13 +256,13 @@ sub go  {
             }
             else {
                 say 'failed';
-                say Dumper $self->processor->error if DEBUG;
+                say Dumper $self->api->error if DEBUG;
             }
         }
 
         if (TEST_TRADE_HISTORY) {
             say 'Trade History...';
-            my $trade_history = $self->processor->trade_history(currencypair => 'BTCCAD');
+            my $trade_history = $self->api->trade_history(currencypair => 'BTCCAD');
             if ($trade_history) {
                 say 'success';
                 say Dumper $trade_history if DEBUG;
@@ -172,13 +273,13 @@ sub go  {
             }
             else {
                 say 'failed';
-                say Dumper $self->processor->error if DEBUG;
+                say Dumper $self->api->error if DEBUG;
             }
         }
 
         if (TEST_ORDER_HISTORY) {
             say 'Order History...';
-            my $order_history = $self->processor->order_history(currencypair => 'BTCCAD');
+            my $order_history = $self->api->order_history(currencypair => 'BTCCAD');
             if ($order_history) {
                 say 'success';
                 say Dumper $order_history if DEBUG;
@@ -188,7 +289,7 @@ sub go  {
             }
             else {
                 say 'failed';
-                say Dumper $self->processor->error if DEBUG;
+                say Dumper $self->api->error if DEBUG;
             }
         }
 
@@ -198,7 +299,7 @@ sub go  {
             my $mode         = 'buy';
             my $amount       = '1.00001';
             my $price        = '0.01';
-            my $order = $self->processor->order(
+            my $order = $self->api->order(
                 currencypair => $currencypair,
                 mode         => $mode,
                 amount       => $amount,
@@ -211,7 +312,7 @@ sub go  {
                 if (TEST_ORDER_CANCEL) {
                     say 'Order Cancel...';
                     my $id = $order->{id};
-                    my $order_cancel = $self->processor->order_cancel(id => $id);
+                    my $order_cancel = $self->api->order_cancel(id => $id);
                     if ($order_cancel) {
                         say 'success';
                         say Dumper $order_cancel if DEBUG;
@@ -219,13 +320,13 @@ sub go  {
                     }
                     else {
                         say 'failed';
-                        say Dumper $self->processor->error if DEBUG;
+                        say Dumper $self->api->error if DEBUG;
                     }
                 }
             }
             else {
                 say 'failed';
-                say Dumper $self->processor->error if DEBUG;
+                say Dumper $self->api->error if DEBUG;
             }
         }
 
@@ -238,7 +339,7 @@ sub go  {
             my $amount   = '0.00000001';
             my $currency = 'BTC';
 
-            my $withdraw = $self->processor->withdraw(amount => $amount, currency => $currency, address => EXTERNAL_BITCOIN_ADDRESS);
+            my $withdraw = $self->api->withdraw(amount => $amount, currency => $currency, address => EXTERNAL_BITCOIN_ADDRESS);
             if ($withdraw) {
                 say 'success';
                 say Dumper $withdraw if DEBUG;
@@ -246,11 +347,34 @@ sub go  {
             }
             else {
                 say 'failed';
-                say Dumper $self->processor->error if DEBUG;
+                say Dumper $self->api->error if DEBUG;
             }
         }
         say '=== Done PRIVATE tests';
     }
+=cut
+}
+
+sub set_public  { shift->api(Finance::CaVirtex::API->new) }
+sub set_private { shift->api(Finance::CaVirtex::API->new(secret => API_SECRET, token => API_TOKEN)) }
+
+sub api           { get_set(@_) }
+sub ticker        { get_set(@_) }
+sub tradebook     { get_set(@_) }
+sub orderbook     { get_set(@_) }
+sub balance       { get_set(@_) }
+sub transactions  { get_set(@_) }
+sub trade_history { get_set(@_) }
+sub order_history { get_set(@_) }
+sub order         { get_set(@_) }
+sub order_cancel  { get_set(@_) }
+sub withdraw      { get_set(@_) }
+
+sub get_set {
+   my $self      = shift;
+   my $attribute = ((caller(1))[3] =~ /::(\w+)$/)[0];
+   $self->{$attribute} = shift if scalar @_;
+   return $self->{$attribute};
 }
 
 1;

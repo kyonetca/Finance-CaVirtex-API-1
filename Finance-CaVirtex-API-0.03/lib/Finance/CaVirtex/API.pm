@@ -4,7 +4,7 @@ use 5.014002;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.03';
 
 use base qw(Finance::CaVirtex::API::DefaultPackage);
 
@@ -112,6 +112,7 @@ sub send {
                 $query_form{token    } = $self->token;
                 $query_form{signature} = $self->signature;
             }
+
             my $uri = URI->new;
             $uri->query_form(%query_form);
             if ($self->request->request_type eq 'POST') {
@@ -180,7 +181,7 @@ sub process_response {
             }
         }
         elsif ($content->{status} eq 'error') {
-            warn sprintf ERROR_CAVIRTEX, Dumper $content->{message};
+            warn sprintf ERROR_CAVIRTEX, Dumper $content->{message} if DEBUG;
             $self->error($content->{message});
         }
         else {
@@ -316,43 +317,63 @@ the connection, authenticatino and an errors in between.
 You create an object like this:
 
     my $caviertex = Finance::CaVirtex::API->new(%params);
-    # ...required param keys: token, secret
+    # required param keys: token, secret
 
 The methods you call that match the API spec are:
 
     $cavirtex-> orderbook(%params);
-    # ...required: currencypair
+    # required: currencypair
 
     $cavirtex-> tradebook(%params);
-    # ...required: currencypair
-    # ...optional: days, startdate, enddate
+    # required: currencypair
+    # optional: days, startdate, enddate
 
-    $cavirtex-> ticker();
-    # ...required: currencypair 
+    $cavirtex-> ticker(%params);
+    # required: currencypair 
 
-    $cavirtex-> balance();
+    $cavirtex-> balance(%params);
 
-    $cavirtex-> transactions();
-    # ...required: currencypair
-    # ...optional: days, startdate, enddate
+    $cavirtex-> transactions(%params);
+    # required: currencypair
+    # optional: days, startdate, enddate
 
-    $cavirtex-> trade_history();
-    # ...required: currencypair
-    # ...optional: days, startdate, enddate
+    $cavirtex-> trade_history(%params);
+    # required: currencypair
+    # optional: days, startdate, enddate
 
-    $cavirtex-> order_history();
-    # ...required: currencypair
-    # ...optional: days, startdate, enddate
+    $cavirtex-> order_history(%params);
+    # required: currencypair
+    # optional: days, startdate, enddate
 
-    $cavirtex-> order();
-    # ...required: currencypair, mode, amount, price
+    $cavirtex-> order(%params);
+    # required: currencypair, mode, amount, price
 
-    $cavirtex-> order_cancel();
-    # ...required: id
+    $cavirtex-> order_cancel(%params);
+    # required: id
 
-    $cavirtex-> withdraw();
-    # ...required: amount, currency, address
+    $cavirtex-> withdraw(%params);
+    # required: amount, currency, address
 
+
+=head1 REQUEST PARAMETERS:
+
+    currencypair - a string. "BTCCAD", "LTCCAD", "BTCLTC"
+
+    days - an integer
+
+    startdate, enddate - a date in the format 'YYYY-MM-DD'
+
+    mode -  a string. "buy", "sell"
+
+    amount - a quantity of BTC or LTC as a floating point string (up to 8 decimals)
+
+    price - a string dollar value. (up to 5 decimals)
+
+    id - an order ID.
+
+    currency - a string. "BTC", "LTC"
+
+    address - a BTC or LTC wallet address
 
 =head1 METHODS
 
